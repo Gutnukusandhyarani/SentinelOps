@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SentinelOps | Security Operations</title><link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-icon">S</div><div><b>SentinelOps</b><small>LOCAL SECURITY OPERATIONS</small></div></div>
+    <div class="side-label">WORKSPACE</div>
+    <a class="nav active" href="#overview">◫ <span>Overview</span></a>
+    <a class="nav" href="#alerts">◎ <span>Alerts</span><span class="nav-pill" id="nav-alerts">0</span></a>
+    <a class="nav" href="#events">≋ <span>Event stream</span></a>
+    <div class="side-label">SYSTEM</div>
+    <div class="side-note"><span class="pulse"></span> Local collector <b>Ready</b></div>
+    <div class="side-note muted">SQLite · Read-only collectors</div>
+    <div class="side-bottom"><div class="avatar">SO</div><div><b>Analyst workspace</b><small>localhost only</small></div></div>
+  </aside>
+  <main class="main" id="overview">
+    <header class="topbar"><div><div class="eyebrow">SECURITY OPERATIONS / OVERVIEW</div><h1>Security overview</h1><p class="sub">Endpoint telemetry, detections and investigation queue.</p></div><div class="top-right"><span class="live"><i></i> LIVE LOCAL DATA</span><button class="refresh" onclick="loadAll()">↻ Refresh</button></div></header>
+    <section class="metrics">
+      <article class="metric"><div class="metric-top"><span>Total events</span><span class="metric-icon blue">≋</span></div><strong id="m-events">—</strong><small>Records ingested into SQLite</small></article>
+      <article class="metric"><div class="metric-top"><span>Total alerts</span><span class="metric-icon violet">◎</span></div><strong id="m-alerts">—</strong><small>Detection matches recorded</small></article>
+      <article class="metric"><div class="metric-top"><span>Needs triage</span><span class="metric-icon amber">⌁</span></div><strong id="m-new">—</strong><small>New or unreviewed alerts</small></article>
+      <article class="metric"><div class="metric-top"><span>Critical open</span><span class="metric-icon red">!</span></div><strong id="m-critical">—</strong><small>Prioritize and investigate</small></article>
+    </section>
+    <section class="panel" id="alerts">
+      <div class="panel-head"><div><div class="eyebrow">DETECTION QUEUE</div><h2>Recent alerts</h2></div><span class="count" id="alert-count">0 records</span></div>
+      <div class="table-wrap"><table><thead><tr><th>DETECTION</th><th>SEVERITY</th><th>ENTITY</th><th>TIME</th><th>STATUS</th><th>TRIAGE</th></tr></thead><tbody id="alerts-body"><tr><td colspan="6" class="empty">No alerts yet. Ingest endpoint logs to begin.</td></tr></tbody></table></div>
+    </section>
+    <section class="panel" id="events">
+      <div class="panel-head"><div><div class="eyebrow">NORMALIZED TELEMETRY</div><h2>Recent events</h2></div><span class="count" id="event-count">0 records</span></div>
+      <div class="table-wrap"><table><thead><tr><th>EVENT</th><th>HOST</th><th>SOURCE / IP</th><th>USER</th><th>OUTCOME</th><th>TIMESTAMP</th></tr></thead><tbody id="events-body"><tr><td colspan="6" class="empty">No events ingested yet.</td></tr></tbody></table></div>
+    </section>
+    <footer>SentinelOps · Defensive monitoring lab · Local data stays on this machine</footer>
+  </main>
+</div>
+<script src="/app.js"></script>
+</body></html>

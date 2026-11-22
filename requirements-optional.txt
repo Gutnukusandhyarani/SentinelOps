@@ -1,0 +1,1 @@
+# Optional network-backed Python dependency vulnerability audit\npip-audit>=2.7,<3.0\n

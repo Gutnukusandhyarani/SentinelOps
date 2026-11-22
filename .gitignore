@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/*.db
+data/*.sqlite*
+data/*.jsonl
+!data/.gitkeep
+.pytest_cache/
+.coverage
+.DS_Store
+
+reports/*.json
+windows-posture.json
+
+# Generated vulnerability audit artifacts are not committed
