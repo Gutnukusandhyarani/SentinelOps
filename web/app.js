@@ -37,4 +37,38 @@ async function loadAll(){
       <td>${esc(e.user||"—")}</td><td>${esc(e.outcome)}</td><td>${esc(niceTime(e.timestamp))}</td></tr>`).join(""):`<tr><td colspan="6" class="empty">No events ingested yet.</td></tr>`;
   }catch(e){console.error(e);$("alerts-body").innerHTML=`<tr><td colspan="6" class="empty">Dashboard API unavailable: ${esc(e.message)}</td></tr>`;}
 }
-loadAll(); setInterval(loadAll,15000);
+/* dashboard startup is selected by /api/config below */
+
+async function loadPublicDashboard(){
+  try{
+    const [summary,activity]=await Promise.all([get("/api/public/summary"),get("/api/public/activity")]);
+    $("pub-events").textContent=Number(summary.events||0).toLocaleString();
+    $("pub-alerts").textContent=Number(summary.alerts||0).toLocaleString();
+    $("pub-new").textContent=Number(summary.new_alerts||0).toLocaleString();
+    $("pub-critical").textContent=Number(summary.critical_open||0).toLocaleString();
+    const last=summary.last_event_at?new Date(summary.last_event_at):null;
+    $("public-status").textContent=Number(summary.events||0)>0?"Event records available":"Waiting for endpoint data";
+    $("public-last-event").textContent=last && !Number.isNaN(last.getTime())?`Most recent event timestamp: ${last.toLocaleString()} (no identifying fields are displayed).`:"No endpoint event has been received yet. Connect an authorized collector to begin.";
+    const max=Math.max(1,...activity.map(d=>Number(d.events||0)));
+    $("public-activity").innerHTML=activity.map(d=>{const count=Number(d.events||0),alerts=Number(d.alerts||0),height=Math.max(3,Math.round(count/max*100));return `<div class="activity-day" title="${esc(d.day)}: ${count} events, ${alerts} alerts"><div class="activity-bar-wrap"><div class="activity-bar" style="height:${height}%"></div></div><b>${count}</b><small>${esc(String(d.day).slice(5))}</small></div>`;}).join("") || `<p class="empty">No activity to display.</p>`;
+    const sev=summary.alerts_by_severity||{};
+    const order=["critical","high","medium","low","info"];
+    const total=order.reduce((n,k)=>n+Number(sev[k]||0),0);
+    $("public-severity").innerHTML=order.map(k=>`<div class="severity-row"><span class="severity-dot sev-${k}"></span><span>${k}</span><b>${Number(sev[k]||0).toLocaleString()}</b><span class="severity-track"><i style="width:${total?Math.round(Number(sev[k]||0)/total*100):0}%"></i></span></div>`).join("");
+  }catch(e){console.error(e);$("public-status").textContent=`Dashboard unavailable: ${esc(e.message)}`;}
+}
+
+async function startDashboard(){
+  try{
+    const config=await get("/api/config");
+    if(config.public_mode){
+      document.body.classList.add("public-mode");
+      $("public-dashboard").hidden=false;
+      await loadPublicDashboard();
+      setInterval(loadPublicDashboard,15000);
+      return;
+    }
+  }catch(e){console.error("Dashboard configuration unavailable",e);}
+  loadAll(); setInterval(loadAll,15000);
+}
+startDashboard();

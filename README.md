@@ -252,3 +252,47 @@ sentinelops-project/
 ## Credits and relationship to upstream projects
 
 SentinelOps was independently written as a learning project after reviewing the high-level feature areas documented in [Wazuh](https://github.com/wazuh/wazuh) and the generic detection-rule approach used by [Sigma](https://github.com/SigmaHQ/sigma). No Wazuh source code, SigmaHQ rule files, logos, or other upstream assets are bundled here. Wazuh and Sigma are separate projects maintained by their respective communities; this repository is not endorsed by either.
+
+
+## Public hosted dashboard (Render)
+
+A deployment configuration is included in `render.yaml`. It turns on an aggregate-only public dashboard and exposes one authenticated ingestion endpoint for a collector you control. The public dashboard returns totals, daily event/alert counts and alert severity totals only. It does not return hostnames, usernames, source IPs, process names, event messages or raw evidence. Detailed `/api/events`, `/api/alerts` and triage APIs are disabled in public mode.
+
+### Important cost and persistence note
+
+The hosted SentinelOps service uses a persistent disk for SQLite. Render persistent disks are available only on paid web services, and this Blueprint uses the Starter plan plus a 1 GB disk. Review the current Render pricing with a parent/guardian before creating or approving the service; do not enable a paid service unless its cost is understood and explicitly approved. Without persistent storage, SQLite data can be lost on deploys/restarts. Render documents these disk constraints at https://render.com/docs/disks.
+
+### Deploy
+
+1. Commit the contents of this repository to your public `SentinelOps` GitHub repository.
+2. In Render, create a new Blueprint and connect `Gutnukusandhyarani/SentinelOps`.
+3. Review `render.yaml` carefully. It requests a paid web-service compute plan and a persistent disk. Do not apply it until the cost has been reviewed and approved.
+4. After deployment, open the service's Environment page and reveal/copy `SENTINELOPS_INGEST_TOKEN` into a secure local environment variable on the collector machine. Never commit it or place it in the portfolio frontend.
+5. Check `https://YOUR-SERVICE.onrender.com/api/health`. It should return `status: ok` and `public_mode: true`.
+
+### Connect an authorized Linux log file
+
+The included `scripts/push_events.py` follows a local log and batches new records to the hosted endpoint. Use only a machine and log file that you own or are explicitly authorized to monitor. Log files can contain personal or organizational data; use a dedicated lab endpoint or sanitize records before sending. The public dashboard exposes aggregate information only, but the stored records still contain event evidence.
+
+On the collector machine, set the secret in the shell environment (do not paste it into a command that will be saved in shell history):
+
+```bash
+export SENTINELOPS_INGEST_TOKEN='paste-the-secret-from-your-private-service-settings'
+python scripts/push_events.py --file /var/log/auth.log --type ssh --url https://YOUR-SERVICE.onrender.com
+```
+
+The collector starts at the end of the file and forwards new lines. Use `--from-start` only when you intentionally want to send existing records. To use a JSONL export, set `--type json`; for the bundled Windows JSONL export, use `--type windows --from-start`. The existing Windows PowerShell collector is a read-only batch export, not a persistent Windows agent.
+
+### API contract
+
+`POST /api/ingest` requires `Authorization: Bearer <SENTINELOPS_INGEST_TOKEN>` and JSON containing `source_type` (`ssh`, `json` or `windows`) and `records` (1–50 records; the bundled agent uses batches of up to 10 to stay well below the request-size limit). The endpoint caps request and record sizes, validates fields, limits request rate, and returns counts only. Do not send credentials, private keys, customer data or logs from systems you are not authorized to monitor.
+
+### Public dashboard contract
+
+- `GET /api/health` and `GET /api/config` are public.
+- `GET /api/public/summary` returns aggregate counts and the timestamp of the latest event.
+- `GET /api/public/activity` returns daily totals only.
+- Detailed event, alert and triage APIs return 404 in public mode.
+- The dashboard refreshes aggregate data every 15 seconds; this is not a guarantee of continuous collector connectivity.
+
+This is a learning/portfolio deployment, not a production SOC service. Do not use it to monitor a business, another person's devices, or sensitive production infrastructure.

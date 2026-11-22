@@ -86,6 +86,43 @@ class Store:
         by_severity={r["severity"]:r["n"] for r in self.conn.execute("SELECT severity,COUNT(*) n FROM alerts GROUP BY severity")}
         return {"events":total,"alerts":alerts,"new_alerts":new_alerts,"critical_open":critical,"alerts_by_severity":by_severity}
 
+    def public_summary(self) -> dict:
+        """Return aggregate counts only; never include raw endpoint identifiers or evidence."""
+        summary=self.summary()
+        last=self.conn.execute("SELECT MAX(timestamp) FROM events").fetchone()[0]
+        return {
+            "events": summary["events"],
+            "alerts": summary["alerts"],
+            "new_alerts": summary["new_alerts"],
+            "critical_open": summary["critical_open"],
+            "alerts_by_severity": summary["alerts_by_severity"],
+            "last_event_at": last,
+        }
+
+    def public_activity(self, days: int=14) -> list[dict]:
+        """Return daily totals only; no host, user, IP, process or raw message fields."""
+        days=max(1,min(int(days),30))
+        event_rows=self.conn.execute(
+            "SELECT substr(timestamp,1,10) AS day, COUNT(*) AS total FROM events "
+            "WHERE julianday(timestamp) >= julianday('now', ?) GROUP BY day",
+            (f"-{days-1} days",)
+        ).fetchall()
+        alert_rows=self.conn.execute(
+            "SELECT substr(timestamp,1,10) AS day, COUNT(*) AS total FROM alerts "
+            "WHERE julianday(timestamp) >= julianday('now', ?) GROUP BY day",
+            (f"-{days-1} days",)
+        ).fetchall()
+        events={str(row["day"]):int(row["total"]) for row in event_rows if row["day"]}
+        alerts={str(row["day"]):int(row["total"]) for row in alert_rows if row["day"]}
+        from datetime import date, timedelta
+        today=date.today()
+        return [
+            {"day":(today-timedelta(days=offset)).isoformat(),
+             "events":events.get((today-timedelta(days=offset)).isoformat(),0),
+             "alerts":alerts.get((today-timedelta(days=offset)).isoformat(),0)}
+            for offset in range(days-1,-1,-1)
+        ]
+
     def update_alert(self, alert_id: int, status: str, notes: str) -> bool:
         if status not in {"new","investigating","resolved","false_positive"}:
             raise ValueError("invalid triage status")

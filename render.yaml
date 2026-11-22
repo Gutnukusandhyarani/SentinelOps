@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: sentinelops-dashboard
+    runtime: python
+    region: singapore
+    plan: 0.5c-512mb
+    buildCommand: pip install -r requirements-hosted.txt
+    startCommand: python -m sentinelops --db /var/data/sentinelops.db serve --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    disk:
+      name: sentinelops-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: SENTINELOPS_PUBLIC_MODE
+        value: "1"
+      - key: SENTINELOPS_INGEST_TOKEN
+        generateValue: true
+      - key: SENTINELOPS_RULES_PATH
+        value: rules/imported_sigma.json

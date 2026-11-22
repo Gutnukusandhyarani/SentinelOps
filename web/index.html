@@ -18,6 +18,28 @@
     <div class="side-bottom"><div class="avatar">SO</div><div><b>Analyst workspace</b><small>localhost only</small></div></div>
   </aside>
   <main class="main" id="overview">
+    <section class="public-dashboard" id="public-dashboard" hidden>
+      <header class="public-head">
+        <div><div class="eyebrow">SENTINELOPS / HOSTED TELEMETRY</div><h1>Security operations overview</h1><p class="sub">Public, privacy-filtered view of events received from an authorized endpoint collector.</p></div>
+        <div class="public-status" id="public-status">Checking available event records…</div>
+      </header>
+      <section class="public-metrics">
+        <article class="metric"><span>Total events received</span><strong id="pub-events">—</strong><small>Actual records stored by SentinelOps</small></article>
+        <article class="metric"><span>Detection alerts</span><strong id="pub-alerts">—</strong><small>Matches from enabled detection rules</small></article>
+        <article class="metric"><span>New alerts</span><strong id="pub-new">—</strong><small>Alerts awaiting analyst review</small></article>
+        <article class="metric"><span>Critical open</span><strong id="pub-critical">—</strong><small>Critical alerts not yet triaged</small></article>
+      </section>
+      <section class="panel public-panel">
+        <div class="panel-head"><div><div class="eyebrow">COLLECTOR ACTIVITY</div><h2>Daily event and alert totals over the last 14 days</h2></div><span class="count">15-second refresh</span></div>
+        <div class="activity-chart" id="public-activity"><p class="empty">Waiting for endpoint data.</p></div>
+      </section>
+      <section class="panel public-panel">
+        <div class="panel-head"><div><div class="eyebrow">DETECTION SEVERITY</div><h2>Alert distribution</h2></div><span class="count">Aggregated counts only</span></div>
+        <div class="severity-list" id="public-severity"><p class="empty">No alert records yet.</p></div>
+      </section>
+      <p class="public-note" id="public-last-event">No endpoint event has been received yet. Connect an authorized collector to begin.</p>
+      <footer class="public-footer">SentinelOps · Public dashboard intentionally omits usernames, IP addresses, hostnames, process names, messages and raw event evidence.</footer>
+    </section>
     <header class="topbar"><div><div class="eyebrow">SECURITY OPERATIONS / OVERVIEW</div><h1>Security overview</h1><p class="sub">Endpoint telemetry, detections and investigation queue.</p></div><div class="top-right"><span class="live"><i></i> LIVE LOCAL DATA</span><button class="refresh" onclick="loadAll()">↻ Refresh</button></div></header>
     <section class="metrics">
       <article class="metric"><div class="metric-top"><span>Total events</span><span class="metric-icon blue">≋</span></div><strong id="m-events">—</strong><small>Records ingested into SQLite</small></article>
