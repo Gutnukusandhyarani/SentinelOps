@@ -125,54 +125,16 @@ class HostedStore:
             return 0
 
     def public_summary(self) -> dict:
-        events = self.count("events")
-        alerts = self.count("alerts")
-        new_alerts = self.count("alerts", {"status": "eq.new"})
-        critical = self.count("alerts", {"status": "eq.new", "severity": "eq.critical"})
-        by_severity = {
-            level: self.count("alerts", {"severity": "eq." + level})
-            for level in ("critical", "high", "medium", "low", "info")
-        }
-        latest, _ = self.db.request("events", params={
-            "select": "timestamp", "order": "timestamp.desc", "limit": "1"
-        })
-        return {
-            "events": events, "alerts": alerts, "new_alerts": new_alerts,
-            "critical_open": critical, "alerts_by_severity": by_severity,
-            "last_event_at": latest[0]["timestamp"] if latest else None,
-        }
+        # SECURITY DEFINER RPC returns aggregates only; raw telemetry tables stay private.
+        data, _ = self.db.request("rpc/sentinelops_public_summary", "POST", payload={})
+        return data or {}
 
     def public_activity(self, days: int = 14) -> list[dict]:
         days = max(1, min(int(days), 30))
-        today = datetime.now(timezone.utc).date()
-        start = today - timedelta(days=days - 1)
-        start_at = datetime.combine(start, datetime.min.time(), timezone.utc).isoformat()
-        event_rows, _ = self.db.request("events", params={
-            "select": "timestamp", "timestamp": "gte." + start_at,
-            "order": "timestamp.asc", "limit": "10000",
-        })
-        alert_rows, _ = self.db.request("alerts", params={
-            "select": "timestamp", "timestamp": "gte." + start_at,
-            "order": "timestamp.asc", "limit": "10000",
-        })
-        event_counts: dict[str, int] = {}
-        alert_counts: dict[str, int] = {}
-        for row in event_rows or []:
-            day = str(row.get("timestamp", ""))[:10]
-            if day:
-                event_counts[day] = event_counts.get(day, 0) + 1
-        for row in alert_rows or []:
-            day = str(row.get("timestamp", ""))[:10]
-            if day:
-                alert_counts[day] = alert_counts.get(day, 0) + 1
-        return [
-            {
-                "day": (start + timedelta(days=i)).isoformat(),
-                "events": event_counts.get((start + timedelta(days=i)).isoformat(), 0),
-                "alerts": alert_counts.get((start + timedelta(days=i)).isoformat(), 0),
-            }
-            for i in range(days)
-        ]
+        data, _ = self.db.request(
+            "rpc/sentinelops_public_activity", "POST", payload={"days": days}
+        )
+        return data or []
 
 
 def ingest_remote_records(records: list, source_type: str = "json") -> dict:
