@@ -54,9 +54,7 @@ def detect_builtin(event, store):
         elif rule["kind"]=="ssh_burst" and event.action=="login_failed" and event.source_ip:
             now=_parse_time(event.timestamp)
             since=(now-timedelta(minutes=10)).isoformat()
-            count=store.conn.execute(
-                "SELECT COUNT(*) FROM events WHERE action='login_failed' AND source_ip=? AND julianday(timestamp)>=julianday(?)",
-                (event.source_ip,since)).fetchone()[0]
+            count=store.count_recent_failed_logins(event.source_ip, since)
             if count>=5:
                 bucket=int(now.timestamp()//900)
                 fp=f"{rule['id']}|{event.source_ip}|{bucket}"
