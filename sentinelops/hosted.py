@@ -24,8 +24,11 @@ class HostedConfigError(RuntimeError):
 class SupabaseREST:
     def __init__(self):
         self.base_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+        # The configured Data API key is intentionally limited to anon RPC access.
+        # Private-table writes are performed only by token-verifying SECURITY DEFINER RPCs.
         self.key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-        if not self.base_url or not self.key:
+        self.ingest_token = os.environ.get("SENTINELOPS_INGEST_TOKEN", "")
+        if not self.base_url or not self.key or not self.ingest_token:
             raise HostedConfigError("Hosted database environment is not configured.")
         if not self.base_url.startswith("https://"):
             raise HostedConfigError("SUPABASE_URL must use HTTPS.")
@@ -86,16 +89,18 @@ class HostedStore:
             "source_ip": event.source_ip, "user": event.user, "process": event.process,
             "event_id": event.event_id, "raw_json": event.raw or {},
         }
-        data, _ = self.db.request("events", "POST", payload=row, prefer="return=representation")
-        return int(data[0]["id"]) if data else 0
+        data, _ = self.db.request(
+            "rpc/sentinelops_ingest_event", "POST",
+            payload={"p_token": self.db.ingest_token, "p_event": row},
+        )
+        return int(data or 0)
 
     def count_recent_failed_logins(self, source_ip: str, since: str) -> int:
-        rows, _ = self.db.request("events", params={
-            "select": "id", "action": "eq.login_failed",
-            "source_ip": "eq." + source_ip, "timestamp": "gte." + since,
-            "limit": "5",
-        })
-        return len(rows or [])
+        data, _ = self.db.request(
+            "rpc/sentinelops_count_failed_logins", "POST",
+            payload={"p_token": self.db.ingest_token, "p_source_ip": source_ip, "p_since": since},
+        )
+        return int(data or 0)
 
     def add_alert(self, alert: dict) -> bool:
         row = {
@@ -106,13 +111,11 @@ class HostedStore:
             "evidence": alert.get("evidence", {}),
             "fingerprint": alert["fingerprint"],
         }
-        try:
-            self.db.request("alerts", "POST", payload=row, prefer="return=minimal")
-            return True
-        except RESTError as exc:
-            if exc.status == 409:
-                return False
-            raise
+        data, _ = self.db.request(
+            "rpc/sentinelops_ingest_alert", "POST",
+            payload={"p_token": self.db.ingest_token, "p_alert": row},
+        )
+        return bool(data)
 
     def count(self, table: str, filters: dict | None = None) -> int:
         params = {"select": "id", **(filters or {})}
