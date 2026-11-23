@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+import hashlib
 import json
 import os
 import secrets
@@ -73,9 +74,16 @@ def _rate_allowed(handler):
 
 
 def handle_ingest(handler):
-    expected = os.environ.get("SENTINELOPS_INGEST_TOKEN", "")
+    # Vercel stores only the SHA-256 digest. The raw collector token stays on
+    # the authorized endpoint and is passed directly to the token-verifying DB RPC.
+    expected_hash = os.environ.get("SENTINELOPS_INGEST_TOKEN", "").strip().lower()
     supplied = handler.headers.get("Authorization", "")
-    if len(expected) < 32 or not supplied.startswith("Bearer ") or not secrets.compare_digest(supplied[7:].strip(), expected):
+    if not supplied.startswith("Bearer "):
+        return send_json(handler, {"error": "unauthorized"}, 401)
+    collector_token = supplied[7:].strip()
+    actual_hash = hashlib.sha256(collector_token.encode("utf-8")).hexdigest()
+    if (len(collector_token) < 32 or len(expected_hash) != 64 or
+            not secrets.compare_digest(actual_hash, expected_hash)):
         return send_json(handler, {"error": "unauthorized"}, 401)
     if not _rate_allowed(handler):
         return send_json(handler, {"error": "rate limit exceeded"}, 429)
@@ -91,7 +99,10 @@ def handle_ingest(handler):
         payload = json.loads(handler.rfile.read(length))
         if not isinstance(payload, dict):
             return send_json(handler, {"error": "JSON object required"}, 400)
-        result = ingest_remote_records(payload.get("records"), str(payload.get("source_type", "json")))
+        result = ingest_remote_records(
+            payload.get("records"), str(payload.get("source_type", "json")),
+            collector_token=collector_token,
+        )
         send_json(handler, {
             "accepted": result["ingested"], "skipped": result["skipped"],
             "alerts_created": result["alerts"], "errors": result["errors"],
