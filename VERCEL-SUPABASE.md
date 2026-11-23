@@ -36,8 +36,10 @@ The Vercel project `sentinelops` needs these values in Preview and Production:
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase Data API key configured for this deployment |
 | `SENTINELOPS_INGEST_TOKEN` | Random private bearer token, at least 32 characters |
+| `SENTINELOPS_ANALYST_PASSWORD_HASH` | SHA-256 digest of the analyst password |
+| `SENTINELOPS_ANALYST_SESSION_SECRET` | Random server-only HMAC key for analyst sessions |
 
-These values must remain server-side. Never add them to `web/`, a `NEXT_PUBLIC_` variable, source control, screenshots, or public messages. The public API key alone cannot read or write the private telemetry tables; the RPCs enforce the dashboard and collector boundaries.
+These values must remain server-side. Never add them to `web/`, a `NEXT_PUBLIC_` variable, source control, screenshots, or public messages. The analyst password is entered only on `/analyst.html` over HTTPS; the session signing key and password digest are never sent to the browser. The public API key alone cannot read or write the private telemetry tables; the RPCs enforce the dashboard and collector boundaries.
 
 After changing environment variables, redeploy the Vercel project so the functions receive the updated values.
 
@@ -48,6 +50,8 @@ After changing environment variables, redeploy the Vercel project so the functio
 - `GET /api/public_summary` returns aggregate counters only.
 - `GET /api/public_activity` returns daily totals only.
 - `POST /api/ingest` requires the bearer token and accepts bounded JSON batches.
+- `/analyst.html` is a sign-in page; `/api/analyst?action=overview|alerts|events` requires an authenticated session. The `login`, `logout` and `session` actions manage the session.
+- `POST /api/analyst?action=triage` requires an authenticated session and updates an alert status and analyst notes.
 
 A zero count is not a dashboard error. It means the database has no endpoint telemetry yet. Synthetic fixtures in `samples/` are never uploaded automatically or represented as real endpoint evidence.
 
