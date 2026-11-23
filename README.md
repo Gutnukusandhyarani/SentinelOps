@@ -304,3 +304,16 @@ The collector starts at the end of the file and forwards new lines. Use `--from-
 - The dashboard refreshes aggregate data every 15 seconds; this is not a guarantee of continuous collector connectivity.
 
 This is a learning/portfolio deployment, not a production SOC service. Do not use it to monitor a business, another person's devices, or sensitive production infrastructure.
+
+
+## Private hosted analyst console
+
+The hosted public overview is aggregate-only. A separate [analyst console](https://sentinelops-git-vercel-supabase-sandhya-6e9f.vercel.app/analyst.html) provides authenticated access to alert evidence and normalized event records, plus status updates and analyst notes.
+
+- Analyst API requests are authenticated with a server-signed, HttpOnly, Secure, SameSite=Strict session cookie.
+- The analyst password is stored in Vercel only as a SHA-256 digest; the session signing key is server-only.
+- Set SENTINELOPS_ANALYST_PASSWORD_HASH and SENTINELOPS_ANALYST_SESSION_SECRET in Preview and Production. Never expose either value in browser JavaScript or commit secrets.
+- The console shows source-event timestamps. That timestamp is not a collector heartbeat and must not be interpreted as proof that an endpoint is currently connected.
+- Detailed records may contain endpoint identifiers and user/process context. Keep the analyst password private and use the console only for endpoints and logs you are authorized to review.
+
+The console currently loads up to 150 recent alerts and 150 recent events. Filters apply to those records; older records are not included in the current page.
