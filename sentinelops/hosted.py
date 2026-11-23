@@ -36,9 +36,14 @@ class SupabaseREST:
         url = f"{self.base_url}/rest/v1/{table}{query}"
         request_headers = {
             "apikey": self.key,
-            "Authorization": f"Bearer {self.key}",
             "Accept": "application/json",
         }
+        # Supabase's new sb_secret_ keys are not JWTs. They must be sent
+        # only as apikey; putting one in Authorization: Bearer makes the
+        # API gateway reject it as an invalid JWT. Legacy service_role keys
+        # are JWTs and still need the Authorization header.
+        if not self.key.startswith("sb_secret_"):
+            request_headers["Authorization"] = f"Bearer {self.key}"
         if payload is not None:
             request_headers["Content-Type"] = "application/json"
         if prefer:
@@ -53,7 +58,10 @@ class SupabaseREST:
                 data = json.loads(raw.decode("utf-8")) if raw else None
                 return data, dict(response.headers.items())
         except HTTPError as exc:
-            # Preserve only the status code; never leak database details to callers.
+            # Log the upstream response for server-side diagnosis without exposing
+            # it to dashboard visitors or logging any credentials.
+            detail = exc.read(2048).decode("utf-8", "replace")
+            print(f"Supabase REST error: status={exc.code} detail={detail[:1000]}")
             raise RESTError(exc.code) from None
         except (URLError, TimeoutError, OSError):
             raise RESTError(503) from None
