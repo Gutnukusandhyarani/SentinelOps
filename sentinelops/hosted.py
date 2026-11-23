@@ -22,13 +22,13 @@ class HostedConfigError(RuntimeError):
 
 
 class SupabaseREST:
-    def __init__(self):
+    def __init__(self, ingest_token: str = ""):
         self.base_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
-        # The configured Data API key is intentionally limited to anon RPC access.
-        # Private-table writes are performed only by token-verifying SECURITY DEFINER RPCs.
+        # Only fixed, narrowly scoped RPCs are available to the Data API key.
+        # Raw table privileges remain revoked from browser roles.
         self.key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-        self.ingest_token = os.environ.get("SENTINELOPS_INGEST_TOKEN", "")
-        if not self.base_url or not self.key or not self.ingest_token:
+        self.ingest_token = ingest_token
+        if not self.base_url or not self.key:
             raise HostedConfigError("Hosted database environment is not configured.")
         if not self.base_url.startswith("https://"):
             raise HostedConfigError("SUPABASE_URL must use HTTPS.")
@@ -78,8 +78,8 @@ class RESTError(RuntimeError):
 
 class HostedStore:
     """Small Store-compatible interface used by the existing detection engine."""
-    def __init__(self):
-        self.db = SupabaseREST()
+    def __init__(self, ingest_token: str = ""):
+        self.db = SupabaseREST(ingest_token=ingest_token)
 
     def add_event(self, event: SecurityEvent) -> int:
         row = {
@@ -140,14 +140,17 @@ class HostedStore:
         return data or []
 
 
-def ingest_remote_records(records: list, source_type: str = "json") -> dict:
+def ingest_remote_records(records: list, source_type: str = "json",
+                         collector_token: str = "") -> dict:
     """Validate a bounded collector batch, persist events, and run built-in rules."""
     if source_type not in {"ssh", "json", "windows"}:
         raise ValueError("unsupported source_type")
     if not isinstance(records, list) or not 1 <= len(records) <= 50:
         raise ValueError("records must be a list containing 1 to 50 items")
+    if not collector_token:
+        raise ValueError("collector authentication is required")
 
-    store = HostedStore()
+    store = HostedStore(ingest_token=collector_token)
     counts = {"received": len(records), "ingested": 0, "skipped": 0, "alerts": 0, "errors": 0}
     max_lengths = {
         "timestamp": 64, "host": 128, "source": 64, "product": 32,
