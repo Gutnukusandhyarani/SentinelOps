@@ -1,47 +1,73 @@
-# Deploy SentinelOps on Vercel + Supabase
+# SentinelOps — Vercel + Supabase hosted dashboard
 
-This hosted adapter is separate from the local SQLite workflow. Local commands continue to use SQLite; Vercel uses Supabase Postgres through the Supabase REST API. Vercel's function filesystem is not used for persistence.
+This hosted deployment uses Vercel for the static dashboard and Python API, with Supabase Postgres for persistent telemetry. The local SQLite workflow remains independent.
 
-## 1. Supabase project
+## Current hosted architecture
 
-The configured database project is `sentinelops` (Mumbai region). It already contains private `events`, `alerts`, and `fim_baseline` tables. Row Level Security is enabled and no browser-facing policies are configured.
+- Vercel static site: `web/`
+- Serverless API: `api/`
+- Supabase tables: `public.events`, `public.alerts`, `public.fim_baseline`
+- Public dashboard routes: `/api/public_summary` and `/api/public_activity`
+- Authenticated collector route: `POST /api/ingest`
 
-## 2. Vercel environment variables
+The public dashboard can display aggregate counts only. It does not expose raw events, usernames, IP addresses, hostnames, process names, messages, or alert evidence.
 
-In Vercel → project `sentinelops` → Settings → Environment Variables, add these for **Production and Preview**:
+## Supabase access model
 
-| Name | Value |
+The telemetry tables remain private with RLS enabled and no anonymous table grants. The dashboard reads only through two fixed aggregate functions:
+
+- `public.sentinelops_public_summary()`
+- `public.sentinelops_public_activity(days)`
+
+Collector writes and detection lookups use token-verifying server-side RPC functions:
+
+- `public.sentinelops_ingest_event(token, event)`
+- `public.sentinelops_ingest_alert(token, alert)`
+- `public.sentinelops_count_failed_logins(token, source_ip, since)`
+
+The collector token is stored only as a SHA-256 hash in the non-exposed `private.sentinelops_secrets` schema. Do not grant browser users direct table access. The migration is tracked in `supabase/migrations/`.
+
+## Vercel environment variables
+
+The Vercel project `sentinelops` needs these values in Preview and Production:
+
+| Variable | Purpose |
 |---|---|
-| `SUPABASE_URL` | Project URL from Supabase → Project Settings / API |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-side secret key from Supabase API keys |
-| `SENTINELOPS_INGEST_TOKEN` | A random secret with at least 32 characters |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase Data API key configured for this deployment |
+| `SENTINELOPS_INGEST_TOKEN` | Random private bearer token, at least 32 characters |
 
-Do not put any of these values in `web/`, a `NEXT_PUBLIC_` variable, GitHub, screenshots, or chat. The service-role key bypasses RLS, so it must remain server-side only. If Supabase offers a modern secret key for server-side use, it can be used instead of the legacy service-role key if it is compatible with the project's Data API.
+These values must remain server-side. Never add them to `web/`, a `NEXT_PUBLIC_` variable, source control, screenshots, or public messages. The public API key alone cannot read or write the private telemetry tables; the RPCs enforce the dashboard and collector boundaries.
 
-After adding variables, redeploy so the functions receive them.
+After changing environment variables, redeploy the Vercel project so the functions receive the updated values.
 
-## 3. Vercel project
+## API smoke tests
 
-Connect `Gutnukusandhyarani/SentinelOps` to the Vercel project named `sentinelops`. Set the Git production branch to `main`; the implementation is currently isolated on `vercel-supabase` for review. The preview branch should deploy automatically when pushed. Do not merge into `main` until the preview has been tested.
+- `GET /api/health` returns health status.
+- `GET /api/config` returns hosted public mode.
+- `GET /api/public_summary` returns aggregate counters only.
+- `GET /api/public_activity` returns daily totals only.
+- `POST /api/ingest` requires the bearer token and accepts bounded JSON batches.
 
-The repository's `vercel.json` publishes `web/` as the static site and maps Python functions under `api/`.
+A zero count is not a dashboard error. It means the database has no endpoint telemetry yet. Synthetic fixtures in `samples/` are never uploaded automatically or represented as real endpoint evidence.
 
-## 4. Smoke tests
+## Authorized endpoint collection
 
-After the preview deployment is ready, verify:
+On a machine you own or are authorized to monitor:
 
-- `/api/health` returns `status: ok` and `public_mode: true`.
-- `/api/config` returns public mode.
-- `/api/public/summary` returns aggregate counts only.
-- `/api/public/activity` returns daily event/alert totals only.
-- `/api/ingest` rejects requests without the bearer token.
+1. Set `SENTINELOPS_INGEST_TOKEN` as a private environment variable to the same value configured in Vercel.
+2. Prepare a JSONL or SSH authentication log using the existing read-only collector/export scripts.
+3. Run `scripts/push_events.py` with the HTTPS Vercel deployment URL.
 
-Do not treat zero counts as a failure: it means no authorized endpoint events have been ingested yet. The bundled sample data remains synthetic and is not automatically uploaded to the hosted database.
+Example for a JSONL export:
 
-## 5. Authorized endpoint collection
+```powershell
+$env:SENTINELOPS_INGEST_TOKEN = "<the private token configured in Vercel>"
+python .\scripts\push_events.py --file .\data\windows-security.jsonl --type windows --url https://sentinelops-git-vercel-supabase-sandhya-6e9f.vercel.app --from-start
+```
 
-Set `SENTINELOPS_INGEST_TOKEN` as a private environment variable on a machine you own or are authorized to monitor. Use the existing `scripts/push_events.py` with the Vercel deployment URL. The collector reads a local log and sends bounded batches over HTTPS. Never send credentials, private keys, customer records, or logs from systems you are not authorized to monitor.
+The collector sends bounded batches over HTTPS. Do not send credentials, private keys, customer records, or logs from systems you are not authorized to monitor. The collector runs on the endpoint; Vercel cannot read local machine logs by itself.
 
-## API security boundary
+## Operational limits
 
-The hosted dashboard exposes aggregate-only summary/activity routes. Detailed events, alert evidence, and analyst triage are intentionally not exposed publicly. Ingestion requires the bearer token. Rate limiting is per serverless instance and should not be treated as a global abuse-control system. This project is a learning/portfolio lab, not a production SOC platform.
+This is a defensive learning and portfolio project, not a production SOC platform. Rate limiting is per serverless instance, and public dashboard endpoints intentionally omit sensitive event details. Keep real endpoint logs private and follow your organization's monitoring rules.
