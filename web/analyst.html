@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>SentinelOps | Analyst Console</title>
+  <link rel="stylesheet" href="/analyst.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="bar">
+      <a class="brand" href="/" aria-label="SentinelOps public overview">
+        <span class="brand-mark">S</span>
+        <span><b>SentinelOps</b><small>ANALYST CONSOLE</small></span>
+      </a>
+      <div class="bar-actions">
+        <a class="public-link" href="/">Public overview</a>
+        <button id="logout" class="button subtle" hidden>Sign out</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="login-view" class="login-wrap">
+        <div class="login-card">
+          <div class="eyebrow">RESTRICTED WORKSPACE</div>
+          <h1>Analyst sign in</h1>
+          <p class="muted">Private event records and investigation evidence are available only after authentication.</p>
+          <form id="login-form">
+            <label for="password">Analyst access password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" minlength="20" required>
+            <button class="button primary" type="submit">Sign in securely</button>
+            <p id="login-error" class="error" role="alert"></p>
+          </form>
+          <div class="security-note"><span class="lock">◆</span> Session cookies are HttpOnly, Secure and expire after 8 hours.</div>
+        </div>
+      </section>
+
+      <section id="console-view" hidden>
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">SECURITY OPERATIONS / PRIVATE VIEW</div>
+            <h1>Investigation workspace</h1>
+            <p class="muted">Review detections, inspect normalized endpoint records and document triage decisions.</p>
+          </div>
+          <span class="live-tag"><i></i> AUTHENTICATED</span>
+        </div>
+
+        <section class="stats-grid">
+          <article class="stat"><span>Total events</span><strong id="event-total">—</strong><small>Stored endpoint records</small></article>
+          <article class="stat"><span>Total alerts</span><strong id="alert-total">—</strong><small>Detection matches</small></article>
+          <article class="stat"><span>Needs triage</span><strong id="new-total">—</strong><small>New alerts</small></article>
+          <article class="stat"><span>Critical open</span><strong id="critical-total">—</strong><small>Critical, unresolved</small></article>
+        </section>
+
+        <section class="last-seen">
+          <div><span class="eyebrow">LATEST SOURCE EVENT</span><b id="last-event">No event timestamp available</b></div>
+          <small>Source-event timestamp, not a collector heartbeat or proof of current connectivity.</small>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div><div class="eyebrow">DETECTION QUEUE</div><h2>Alerts requiring review</h2></div>
+            <span id="alert-count" class="count">0 alerts</span>
+          </div>
+          <div class="filters">
+            <input id="alert-search" type="search" placeholder="Search title, host, rule or entity" aria-label="Search alerts">
+            <select id="alert-severity" aria-label="Filter alert severity">
+              <option value="">All severities</option><option>critical</option><option>high</option><option>medium</option><option>low</option><option>info</option>
+            </select>
+            <select id="alert-status" aria-label="Filter alert status">
+              <option value="">All statuses</option><option value="new">New</option><option value="investigating">Investigating</option><option value="resolved">Resolved</option><option value="false_positive">False positive</option>
+            </select>
+            <button id="refresh" class="button subtle">Refresh</button>
+          </div>
+          <div class="work-grid">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>DETECTION</th><th>SEVERITY</th><th>STATUS</th><th>TIME</th></tr></thead>
+                <tbody id="alerts-list"><tr><td colspan="4" class="empty">Loading alerts…</td></tr></tbody>
+              </table>
+            </div>
+            <aside id="alert-detail" class="detail empty-detail">
+              <div class="detail-placeholder">Select an alert to inspect its description, evidence and triage history.</div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div><div class="eyebrow">NORMALIZED TELEMETRY</div><h2>Recent endpoint events</h2></div>
+            <span id="event-count" class="count">0 events</span>
+          </div>
+          <div class="filters">
+            <input id="event-search" type="search" placeholder="Search host, user, process, action or source" aria-label="Search events">
+            <select id="event-severity" aria-label="Filter event severity">
+              <option value="">All severities</option><option>critical</option><option>high</option><option>medium</option><option>low</option><option>info</option>
+            </select>
+            <span class="muted small">Showing up to 150 latest records</span>
+          </div>
+          <div class="table-wrap">
+            <table class="events-table">
+              <thead><tr><th>EVENT</th><th>HOST</th><th>SOURCE</th><th>USER / PROCESS</th><th>OUTCOME</th><th>TIMESTAMP</th></tr></thead>
+              <tbody id="events-list"><tr><td colspan="6" class="empty">Loading events…</td></tr></tbody>
+            </table>
+          </div>
+          <div id="event-detail" class="event-detail" hidden></div>
+        </section>
+      </section>
+    </main>
+    <footer>SentinelOps · Private analyst workspace · Handle endpoint evidence as sensitive information.</footer>
+  </div>
+  <script src="/analyst.js"></script>
+</body>
+</html>
