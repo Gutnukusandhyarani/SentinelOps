@@ -51,6 +51,15 @@ class Store:
         self.conn.commit()
         return int(cur.lastrowid)
 
+    def count_recent_failed_logins(self, source_ip: str, since: str) -> int:
+        """Count recent failed SSH logins for the built-in burst detector."""
+        row = self.conn.execute(
+            "SELECT COUNT(*) FROM events WHERE action='login_failed' AND source_ip=? "
+            "AND julianday(timestamp)>=julianday(?)",
+            (source_ip, since)
+        ).fetchone()
+        return int(row[0])
+
     def add_alert(self, alert: dict) -> bool:
         try:
             self.conn.execute("""

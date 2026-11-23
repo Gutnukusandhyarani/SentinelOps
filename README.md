@@ -254,6 +254,14 @@ sentinelops-project/
 SentinelOps was independently written as a learning project after reviewing the high-level feature areas documented in [Wazuh](https://github.com/wazuh/wazuh) and the generic detection-rule approach used by [Sigma](https://github.com/SigmaHQ/sigma). No Wazuh source code, SigmaHQ rule files, logos, or other upstream assets are bundled here. Wazuh and Sigma are separate projects maintained by their respective communities; this repository is not endorsed by either.
 
 
+## Public hosted dashboard (Vercel + Supabase)
+
+For a no-Render deployment, use the Vercel serverless API with Supabase Postgres persistence. Follow the dedicated [Vercel + Supabase deployment guide](VERCEL-SUPABASE.md). The hosted public dashboard returns aggregate counts only; authenticated collector ingestion is handled by the server-side API. The original local SQLite workflow remains available.
+
+## Legacy hosted dashboard (Render)
+
+The following Render instructions are retained for reference only; they are not used by the Vercel deployment.
+
 ## Public hosted dashboard (Render)
 
 A deployment configuration is included in `render.yaml`. It turns on an aggregate-only public dashboard and exposes one authenticated ingestion endpoint for a collector you control. The public dashboard returns totals, daily event/alert counts and alert severity totals only. It does not return hostnames, usernames, source IPs, process names, event messages or raw evidence. Detailed `/api/events`, `/api/alerts` and triage APIs are disabled in public mode.
@@ -296,3 +304,16 @@ The collector starts at the end of the file and forwards new lines. Use `--from-
 - The dashboard refreshes aggregate data every 15 seconds; this is not a guarantee of continuous collector connectivity.
 
 This is a learning/portfolio deployment, not a production SOC service. Do not use it to monitor a business, another person's devices, or sensitive production infrastructure.
+
+
+## Private hosted analyst console
+
+The hosted public overview is aggregate-only. A separate [analyst console](https://sentinelops-git-vercel-supabase-sandhya-6e9f.vercel.app/analyst.html) provides authenticated access to alert evidence and normalized event records, plus status updates and analyst notes.
+
+- Analyst API requests are authenticated with a server-signed, HttpOnly, Secure, SameSite=Strict session cookie.
+- The analyst password is stored in Vercel only as a SHA-256 digest; the session signing key is server-only.
+- Set SENTINELOPS_ANALYST_PASSWORD_HASH and SENTINELOPS_ANALYST_SESSION_SECRET in Preview and Production. Never expose either value in browser JavaScript or commit secrets.
+- The console shows source-event timestamps. That timestamp is not a collector heartbeat and must not be interpreted as proof that an endpoint is currently connected.
+- Detailed records may contain endpoint identifiers and user/process context. Keep the analyst password private and use the console only for endpoints and logs you are authorized to review.
+
+The console currently loads up to 150 recent alerts and 150 recent events. Filters apply to those records; older records are not included in the current page.
