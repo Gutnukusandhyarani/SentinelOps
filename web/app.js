@@ -41,7 +41,7 @@ async function loadAll(){
 
 async function loadPublicDashboard(){
   try{
-    const [summary,activity]=await Promise.all([get("/api/public/summary"),get("/api/public/activity")]);
+    const [summary,activity]=await Promise.all([get("/api/public_summary"),get("/api/public_activity")]);
     $("pub-events").textContent=Number(summary.events||0).toLocaleString();
     $("pub-alerts").textContent=Number(summary.alerts||0).toLocaleString();
     $("pub-new").textContent=Number(summary.new_alerts||0).toLocaleString();
